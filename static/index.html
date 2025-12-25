@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Team Activity Tracker</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Team Activity Tracker</h1>
+    <p class="subtitle">
+      Ask what a team member is working on across GitHub and JIRA
+    </p>
+
+    <div class="input-box">
+      <input
+        id="msg"
+        type="text"
+        placeholder="e.g. pull requests of John"
+        onkeydown="if(event.key==='Enter') send()"
+      />
+      <button onclick="send()">Ask</button>
+    </div>
+
+    <div id="status" class="status"></div>
+
+    <pre id="out" class="output"></pre>
+  </div>
+
+  <script src="/static/script.js"></script>
+</body>
+</html>
