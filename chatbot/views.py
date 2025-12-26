@@ -1,18 +1,15 @@
 # Create your views here.
-import json
 
-from .query_parser import extract_name_and_intent
-from .jira_client import get_jira_issues
-from .github_client import get_github_activity
-from .response_generator import (
-    jira_template,
-    github_template,
-    combined_template
-)
-from .serializers import ChatbotSerializer
 from rest_framework.response import Response
+from rest_framework.status import HTTP_200_OK, HTTP_400_BAD_REQUEST
 from rest_framework.viewsets import ViewSet
-from rest_framework.status import HTTP_400_BAD_REQUEST, HTTP_200_OK
+
+from .github_client import get_github_activity
+from .jira_client import get_jira_activity
+from .query_parser import extract_name_and_intent
+from .response_generator import combined_template, github_template, jira_template
+from .serializers import ChatbotSerializer
+
 
 class ChatbotView(ViewSet):
     def post(self, request):
@@ -30,7 +27,7 @@ class ChatbotView(ViewSet):
         github_data = {}
 
         if intent in ["JIRA_ONLY", "BOTH"]:
-            jira_data = get_jira_issues(name)
+            jira_data = get_jira_activity(name)
 
         if intent in ["GITHUB_ONLY", "BOTH"]:
             github_data = get_github_activity(name)

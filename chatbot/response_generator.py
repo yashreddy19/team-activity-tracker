@@ -9,16 +9,8 @@ def jira_template(name, issues):
 
 
 def github_template(name, data):
-    return (
-        f"On GitHub, {name} has:\n"
-        f"- {data['commits']} commits\n"
-        f"- {data['pull_requests']} open pull requests"
-    )
+    return f"On GitHub, {name} has:\n" f"- {data['commits']} commits\n" f"- {data['pull_requests']} open pull requests"
 
 
 def combined_template(name, jira_data, github_data):
-    return (
-        jira_template(name, jira_data)
-        + "\n\n"
-        + github_template(name, github_data)
-    )
+    return jira_template(name, jira_data) + "\n\n" + github_template(name, github_data)

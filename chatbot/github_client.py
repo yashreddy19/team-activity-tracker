@@ -1,5 +1,5 @@
-import os
 import requests
+
 
 def get_github_activity(username):
     username = "yashreddy19"
@@ -9,7 +9,4 @@ def get_github_activity(username):
     commits = requests.get(commits_url).json().get("total_count", 0)
     prs = requests.get(prs_url).json().get("total_count", 0)
 
-    return {
-        "commits": commits,
-        "pull_requests": prs
-    }
+    return {"commits": commits, "pull_requests": prs}

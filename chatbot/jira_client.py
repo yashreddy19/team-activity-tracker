@@ -1,51 +1,62 @@
-import os
+from datetime import datetime, timedelta
+
 import requests
 from requests.auth import HTTPBasicAuth
 
+from team_activity_tracker.settings import JIRA_ACCOUNT_ID, JIRA_API_TOKEN, JIRA_BASE_URL, JIRA_EMAIL
 
-def _get_jira_auth():
-    """
-    Internal helper to build Jira auth
-    """
-    return HTTPBasicAuth(
-        os.getenv("JIRA_EMAIL"),
-        os.getenv("JIRA_API_TOKEN")
-    )
+USER_ALIAS_TO_ACCOUNT_ID = {
+    "john": JIRA_ACCOUNT_ID,
+    "sarah": JIRA_ACCOUNT_ID,
+    "mike": JIRA_ACCOUNT_ID,
+}
 
 
-def get_my_jira_account_id():
-    """
-    Returns the accountId of the authenticated Jira user
-    """
-    url = f"{os.getenv('JIRA_BASE_URL')}/rest/api/3/myself"
-    resp = requests.get(url, auth=_get_jira_auth())
+def get_auth():
+    return HTTPBasicAuth(JIRA_EMAIL, JIRA_API_TOKEN)
+
+
+def get_jira_activity(username: str, days: int = None):
+    username_key = username.lower()
+
+    # User not found
+    if username_key not in USER_ALIAS_TO_ACCOUNT_ID:
+        return {"success": False, "message": f"User '{username}' not found"}
+
+    account_id = USER_ALIAS_TO_ACCOUNT_ID[username_key]
+
+    url = f"{JIRA_BASE_URL}/rest/api/3/search/jql"
+
+    payload = {"jql": f'assignee = "{account_id}"', "fields": ["summary", "status", "updated"], "maxResults": 50}
+
+    resp = requests.post(url, auth=get_auth(), json=payload)
     resp.raise_for_status()
-    return resp.json()["accountId"]
 
+    issues = resp.json().get("issues", [])
 
-def get_jira_issues():
-    """
-    Demo-safe Jira issues fetcher.
+    # Filter by time window if required
+    if days is not None:
+        since = datetime.now() - timedelta(days=days)
+        issues = [
+            issue
+            for issue in issues
+            if datetime.strptime(issue["fields"]["updated"], "%Y-%m-%dT%H:%M:%S.%f%z").replace(tzinfo=None) >= since
+        ]
 
-    NOTE:
-    Jira Cloud Free + team-managed projects have unreliable search indexing.
-    Hence, for this assignment/demo, we fetch issues by key directly.
-    """
-    issue_keys = ["KAN-4"]  # demo issue keys
-    issues = []
+    # No recent activity
+    if not issues:
+        return {"success": True, "message": f"{username} has no recent activity", "data": []}
 
-    for key in issue_keys:
-        url = f"{os.getenv('JIRA_BASE_URL')}/rest/api/3/issue/{key}"
-        resp = requests.get(url, auth=_get_jira_auth())
-        resp.raise_for_status()
-        data = resp.json()
-
-        issues.append({
-            "key": data["key"],
-            "summary": data["fields"]["summary"],
-            "status": data["fields"]["status"]["name"]
-        })
-
-    return issues
-
-
+    return {
+        "success": True,
+        "user": username,
+        "data": [
+            {
+                "key": issue["key"],
+                "summary": issue["fields"]["summary"],
+                "status": issue["fields"]["status"]["name"],
+                "updated": issue["fields"]["updated"],
+            }
+            for issue in issues
+        ],
+    }
