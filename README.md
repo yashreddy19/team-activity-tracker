@@ -1,6 +1,6 @@
 # Team Activity Tracker
 
-A Django-based chatbot application that tracks and reports team member activity from Jira and GitHub. This application provides a natural language interface to query team member contributions, pull requests, commits, and Jira issues.
+A Python/Django based chatbot application that tracks and reports team member activity from Jira and GitHub. This application provides a natural language interface to query team member contributions, pull requests, commits, and Jira issues.
 
 ## Features
 
