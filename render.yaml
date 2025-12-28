@@ -1,0 +1,8 @@
+services:
+  - type: web
+    name: team-activity-tracker
+    runtime: python
+    plan: free
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn team_activity_tracker.wsgi:application"
+    autoDeploy: true
