@@ -8,3 +8,4 @@ autoflake==1.4
 requests==2.32.5
 gunicorn==21.2.0
 whitenoise==6.11.0
+tenacity==9.1.2

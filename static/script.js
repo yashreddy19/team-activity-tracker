@@ -35,6 +35,20 @@ function setLoading(loading) {
   }
 }
 
+function showWelcomeMessage() {
+  if (chat.children.length === 0) {
+    addMessage(
+      "👋 Hi! I’m your Team Activity Tracker.\n\n" +
+        "You can ask things like:\n" +
+        "• What JIRA tickets is John working on?\n" +
+        "• What is Sarah working on these days?\n" +
+        "• Fetch recent GitHub commits by Mike\n\n" +
+        "How can I help you today?",
+      "bot"
+    );
+  }
+}
+
 function send() {
   const message = input.value.trim();
   if (!message) return;
@@ -79,6 +93,8 @@ input.addEventListener("keydown", (e) => {
     send();
   }
 });
+
+showWelcomeMessage();
 
 // Focus input on load
 input.focus();
