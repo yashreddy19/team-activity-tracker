@@ -1,32 +1,84 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
+
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Team Activity Tracker</title>
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/style.css?v=3" />
+  <style>
+    /* Force dark mode immediately to prevent flash */
+    html,
+    body {
+      background: linear-gradient(135deg, #0a0e1a 0%, #1a1f35 100%) !important;
+      color: #e5e7eb !important;
+      margin: 0;
+      padding: 0;
+    }
+
+    .container {
+      background: #111827 !important;
+      color: #e5e7eb !important;
+    }
+
+    .header {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(139, 92, 246, 0.1) 100%) !important;
+      border-bottom: 1px solid #1f2937 !important;
+    }
+
+    .chat {
+      background: #0a0e1a !important;
+    }
+
+    .input-area {
+      background: #111827 !important;
+      border-top: 1px solid #1f2937 !important;
+    }
+
+    .input-wrapper {
+      background: #0a0e1a !important;
+      border: 1px solid #1f2937 !important;
+    }
+
+    input {
+      background: transparent !important;
+      color: #e5e7eb !important;
+    }
+  </style>
 </head>
+
 <body>
   <div class="container">
-    <h1>Team Activity Tracker</h1>
-    <p class="subtitle">
-      Ask what a team member is working on across GitHub and JIRA
-    </p>
+    <header class="header">
+      <div class="header-content">
+        <div class="logo">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+            <path d="M2 17l10 5 10-5"></path>
+            <path d="M2 12l10 5 10-5"></path>
+          </svg>
+          <h1>Team Activity Tracker</h1>
+        </div>
+      </div>
+    </header>
 
-    <div class="input-box">
-      <input
-        id="msg"
-        type="text"
-        placeholder="e.g. pull requests of John"
-        onkeydown="if(event.key==='Enter') send()"
-      />
-      <button onclick="send()">Ask</button>
+    <div id="chat" class="chat"></div>
+
+    <div class="input-area">
+      <div class="input-wrapper">
+        <input id="msg" type="text" placeholder="Ask about Jira or GitHub activity…"
+          onkeydown="if(event.key==='Enter') send()" />
+        <button onclick="send()" id="sendBtn" class="send-button">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+        </button>
+      </div>
     </div>
-
-    <div id="status" class="status"></div>
-
-    <pre id="out" class="output"></pre>
   </div>
 
   <script src="/static/script.js"></script>
 </body>
+
 </html>

@@ -17,17 +17,26 @@ def get_auth():
 
 
 def get_jira_activity(username: str, days: int = None):
+    """
+    Returns a list of Jira issues assigned to the user.
+
+    Raises:
+        ValueError: if user is not found
+    """
+
     username_key = username.lower()
 
-    # User not found
     if username_key not in USER_ALIAS_TO_ACCOUNT_ID:
-        return {"success": False, "message": f"User '{username}' not found"}
+        raise ValueError(f"User '{username}' not found")
 
     account_id = USER_ALIAS_TO_ACCOUNT_ID[username_key]
 
     url = f"{JIRA_BASE_URL}/rest/api/3/search/jql"
-
-    payload = {"jql": f'assignee = "{account_id}"', "fields": ["summary", "status", "updated"], "maxResults": 50}
+    payload = {
+        "jql": f'assignee = "{account_id}"',
+        "fields": ["summary", "status", "updated"],
+        "maxResults": 50,
+    }
 
     resp = requests.post(url, auth=get_auth(), json=payload)
     resp.raise_for_status()
@@ -43,20 +52,12 @@ def get_jira_activity(username: str, days: int = None):
             if datetime.strptime(issue["fields"]["updated"], "%Y-%m-%dT%H:%M:%S.%f%z").replace(tzinfo=None) >= since
         ]
 
-    # No recent activity
-    if not issues:
-        return {"success": True, "message": f"{username} has no recent activity", "data": []}
-
-    return {
-        "success": True,
-        "user": username,
-        "data": [
-            {
-                "key": issue["key"],
-                "summary": issue["fields"]["summary"],
-                "status": issue["fields"]["status"]["name"],
-                "updated": issue["fields"]["updated"],
-            }
-            for issue in issues
-        ],
-    }
+    return [
+        {
+            "key": issue["key"],
+            "summary": issue["fields"]["summary"],
+            "status": issue["fields"]["status"]["name"],
+            "updated": issue["fields"]["updated"],
+        }
+        for issue in issues
+    ]
