@@ -1,53 +1,82 @@
+from datetime import datetime, timedelta, timezone
+from multiprocessing.dummy import Pool as ThreadPool
+from typing import Dict, List
+
 import requests
+from tenacity import retry, retry_if_exception, stop_after_attempt, wait_fixed
 
-GITHUB_USERNAME_MAP = {
-    "john": "yashreddy19",
-    "sarah": "yashreddy19",
-    "mike": "yashreddy19",
-}
-
-
-def get_headers(for_commits=False):
-    headers = {}
-    if for_commits:
-        headers["Accept"] = "application/vnd.github.cloak-preview+json"
-
-    return headers
+from chatbot.constants import GITHUB_USER_ALIAS_TO_USERNAME_MAP
+from chatbot.exceptions import GitHubServiceUnavailable
+from team_activity_tracker.settings import GITHUB_BASE_URL
 
 
-def get_github_activity(name):
-    key = name.lower()
-    if key not in GITHUB_USERNAME_MAP:
-        raise ValueError(f"GitHub user '{name}' not found")
+def is_retryable_github_error(exception: Exception) -> bool:
+    """
+    Retry only for HTTP 5xx errors from GitHub.
+    """
+    if isinstance(exception, requests.exceptions.HTTPError):
+        response = exception.response
+        return response is not None and 500 <= response.status_code < 600
+    return False
 
-    username = GITHUB_USERNAME_MAP[key]
 
-    commits_url = "https://api.github.com/search/commits"
-    prs_url = "https://api.github.com/search/issues"
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_fixed(3),
+    retry=retry_if_exception(is_retryable_github_error),
+    reraise=True,
+)
+def fetch_github_data(url: str, headers=None, params=None) -> requests.Response:
+    resp = requests.get(
+        url,
+        headers=headers,
+        params=params,
+        timeout=10,
+    )
+    resp.raise_for_status()
+    return resp
 
-    commits_resp = requests.get(commits_url, headers=get_headers(for_commits=True), params={"q": f"author:{username}"})
-    commits_resp.raise_for_status()
 
-    prs_resp = requests.get(prs_url, headers=get_headers(), params={"q": f"type:pr author:{username}"})
-    prs_resp.raise_for_status()
+def fetch_commits_count(username: str) -> int:
+    url = f"{GITHUB_BASE_URL}/search/commits"
+    resp = fetch_github_data(
+        url,
+        params={"q": f"author:{username}"},
+    )
+    return resp.json().get("total_count", 0)
+
+
+def fetch_prs_count(username: str) -> int:
+    url = f"{GITHUB_BASE_URL}/search/issues"
+    resp = fetch_github_data(
+        url,
+        params={"q": f"type:pr author:{username}"},
+    )
+    return resp.json().get("total_count", 0)
+
+
+def get_github_activity(name: str) -> Dict[str, int]:
+    username = GITHUB_USER_ALIAS_TO_USERNAME_MAP[name.lower()]
+
+    try:
+        with ThreadPool(processes=2) as pool:
+            commits_count, prs_count = pool.map(
+                lambda fn: fn(username),
+                [fetch_commits_count, fetch_prs_count],
+            )
+    except requests.exceptions.HTTPError as e:
+        raise GitHubServiceUnavailable("Github is temporarily unavailable") from e
 
     return {
-        "commits": commits_resp.json().get("total_count", 0),
-        "pull_requests": prs_resp.json().get("total_count", 0),
+        "commits": commits_count,
+        "pull_requests": prs_count,
     }
 
 
-from datetime import datetime, timedelta, timezone
+def get_recent_commits(name: str, days: int = None, limit: int = 20) -> List[Dict]:
+    username = GITHUB_USER_ALIAS_TO_USERNAME_MAP[name.lower()]
 
-
-def get_recent_commits(name, days=None, limit=20):
-    key = name.lower()
-    if key not in GITHUB_USERNAME_MAP:
-        raise ValueError(f"GitHub user '{name}' not found")
-
-    username = GITHUB_USERNAME_MAP[key]
-
-    url = "https://api.github.com/search/commits"
+    url = f"{GITHUB_BASE_URL}/search/commits"
     params = {
         "q": f"author:{username}",
         "sort": "author-date",
@@ -55,16 +84,22 @@ def get_recent_commits(name, days=None, limit=20):
         "per_page": limit,
     }
 
-    resp = requests.get(url, headers=get_headers(for_commits=True), params=params)
-    resp.raise_for_status()
+    try:
+        resp = fetch_github_data(
+            url,
+            params=params,
+        )
+    except requests.exceptions.HTTPError as e:
+        raise GitHubServiceUnavailable("Github is temporarily unavailable") from e
 
-    commits = []
+    items = resp.json().get("items", [])
+
     since = None
-
     if days is not None:
         since = datetime.now(timezone.utc) - timedelta(days=days)
 
-    for item in resp.json().get("items", []):
+    commits = []
+    for item in items:
         commit_date = datetime.fromisoformat(item["commit"]["author"]["date"].replace("Z", "+00:00"))
 
         if since and commit_date < since:
@@ -81,18 +116,19 @@ def get_recent_commits(name, days=None, limit=20):
     return commits
 
 
-def get_active_pull_requests(name):
-    key = name.lower()
-    if key not in GITHUB_USERNAME_MAP:
-        raise ValueError(f"GitHub user '{name}' not found")
+def get_active_pull_requests(name: str) -> List[Dict]:
+    username = GITHUB_USER_ALIAS_TO_USERNAME_MAP[name.lower()]
 
-    username = GITHUB_USERNAME_MAP[key]
-
-    url = "https://api.github.com/search/issues"
+    url = f"{GITHUB_BASE_URL}/search/issues"
     params = {"q": f"type:pr author:{username} state:open"}
 
-    resp = requests.get(url, headers=get_headers(), params=params)
-    resp.raise_for_status()
+    try:
+        resp = fetch_github_data(
+            url,
+            params=params,
+        )
+    except requests.exceptions.HTTPError as e:
+        raise GitHubServiceUnavailable("Github is temporarily unavailable") from e
 
     return [
         {
@@ -104,22 +140,23 @@ def get_active_pull_requests(name):
     ]
 
 
-def get_recent_repositories(name, limit=5):
-    key = name.lower()
-    if key not in GITHUB_USERNAME_MAP:
-        raise ValueError(f"GitHub user '{name}' not found")
+def get_recent_repositories(name: str, limit: int = 5) -> List[str]:
+    username = GITHUB_USER_ALIAS_TO_USERNAME_MAP[name.lower()]
 
-    username = GITHUB_USERNAME_MAP[key]
-
-    url = "https://api.github.com/search/commits"
+    url = f"{GITHUB_BASE_URL}/search/commits"
     params = {
         "q": f"author:{username}",
         "sort": "author-date",
         "order": "desc",
     }
 
-    resp = requests.get(url, headers=get_headers(for_commits=True), params=params)
-    resp.raise_for_status()
+    try:
+        resp = fetch_github_data(
+            url,
+            params=params,
+        )
+    except requests.exceptions.HTTPError as e:
+        raise GitHubServiceUnavailable("Github is temporarily unavailable") from e
 
     repos = []
     seen = set()
