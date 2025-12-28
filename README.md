@@ -126,22 +126,17 @@ team-activity-tracker/
    }
    ```
 
-6. **Run database migrations**
-   ```bash
-   python manage.py migrate
-   ```
-
-7. **Collect static files**
+6. **Collect static files**
    ```bash
    python manage.py collectstatic
    ```
 
-8. **Run the development server**
+7. **Run the development server**
    ```bash
    python manage.py runserver
    ```
 
-9. **Access the application**
+8. **Access the application**
    - Open your browser and navigate to `http://localhost:8000`
    - The chat interface should be available
 
